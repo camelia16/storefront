@@ -21,6 +21,8 @@ import { isBestseller, BESTSELLER_ATTRIBUTE_SLUGS } from "@/lib/catalog/product-
 import { getAttributeValueDisplayName } from "@/ui/components/pdp/variant-selection/utils";
 import { Breadcrumbs } from "@/ui/components/breadcrumbs";
 import { BestsellerBadge } from "@/ui/components/ui/sale-label";
+import { BestsellerBadgeProminent } from "@/ui/components/pdp/BestsellerBadgeProminent";
+import { assignVariant, trackExposure } from "@/lib/pilot-experiments";
 import {
 	ProductAttributes,
 	activeGalleryVariant,
@@ -178,6 +180,19 @@ async function ProductShell({
 		variantCount: product.variants?.length ?? 0,
 	});
 
+	// ── Bestseller badge experiment ──────────────────────────────────────────
+	const BADGE_EXPERIMENT_KEY = "prominent-bestseller-badge";
+	// Use a stable anonymous id derived from channel + slug when no user session exists.
+	// If your codebase gains a real userId, replace this with that identifier.
+	const experimentUserId = `${params.channel}::${params.slug}`;
+	const badgeVariant = showBestsellerBadge
+		? assignVariant(BADGE_EXPERIMENT_KEY, experimentUserId, 50)
+		: "control";
+	if (showBestsellerBadge) {
+		trackExposure(BADGE_EXPERIMENT_KEY, badgeVariant, experimentUserId);
+	}
+	// ─────────────────────────────────────────────────────────────────────────
+
 	const lcpImage = defaultImages[0];
 	// Reserve mobile dots / desktop thumbs in fallback when product has multiple images
 	const showGalleryChrome = defaultImages.length > 1;
@@ -220,11 +235,15 @@ async function ProductShell({
 					</div>
 
 					<div className={layout.infoColumn}>
-						{showBestsellerBadge && (
-							<div className="order-1 flex items-center gap-2">
+					{showBestsellerBadge && (
+						<div className="order-1 flex items-center gap-2">
+							{badgeVariant === "treatment" ? (
+								<BestsellerBadgeProminent />
+							) : (
 								<BestsellerBadge />
-							</div>
-						)}
+							)}
+						</div>
+					)}
 
 						<h1 className="order-2 text-balance text-h1">{product.name}</h1>
 
